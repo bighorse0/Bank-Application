@@ -12,7 +12,7 @@ public class UserController {
     UserService userService;
 
     @PostMapping
-    public BankResponse createdAccount(@RequestBody UserRequest userRequest) {
+    public BankResponse createAccount(@RequestBody UserRequest userRequest) {
         return userService.createAccount(userRequest);
     }
 }
