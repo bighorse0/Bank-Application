@@ -26,6 +26,7 @@ public class User {
     private String email;
     private String phoneNumber;
     private String address;
+    //maybe save an Arraylist of account numbers tied to someone if our bank allows multiple accounts per User.
     private String accountNumber;
     private BigDecimal accountBalance;
     private String status;

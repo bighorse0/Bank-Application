@@ -6,7 +6,6 @@ import com.drew.Bank_App.dto.UserRequest;
 
 public interface UserService {
 
-
     BankResponse createAccount(UserRequest userRequest);
 
 }
