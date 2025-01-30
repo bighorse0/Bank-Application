@@ -16,6 +16,8 @@ public class AccountUtils {
     public static final String ACC_HAS_INSUFFICIENT_FUNDS_MESSAGE = "Account has been insufficient funds";
     public static final String ACC_HAS_BEEN_DEBITED = "5";
     public static final String ACC_HAS_BEEN_DEBITED_MESSAGE = "Account has been debited";
+    public static final String MONEY_HAS_BEEN_TRANSFERRED = "6";
+    public static final String MONEY_HAS_BEEN_TRANSFERRED_MESSAGE = "Money has been transferred";
 
     public static String generateAccountNumber() {
         /**
