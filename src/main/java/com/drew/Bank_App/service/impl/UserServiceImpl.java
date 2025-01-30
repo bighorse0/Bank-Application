@@ -16,6 +16,9 @@ public class UserServiceImpl implements UserService {
     @Autowired
     EmailService emailService;
 
+    @Autowired
+    TransactionService transactionService;
+
     @Override
     public BankResponse createAccount(UserRequest userRequest) {
         /**
@@ -116,6 +119,14 @@ public class UserServiceImpl implements UserService {
         user.setAccountBalance(user.getAccountBalance().add(request.getAmount()));
         userRepository.save(user);
 
+        TransactionDto transactionDto = TransactionDto.builder()
+                .accountNumber(user.getAccountNumber())
+                .amount(request.getAmount())
+                .transactionType("CREDIT")
+                .build();
+
+        transactionService.saveTransaction(transactionDto);
+
         return BankResponse.builder()
                 .responseCode(AccountUtils.ACC_HAS_BEEN_CREDITED)
                 .responseMessage(AccountUtils.ACC_HAS_BEEN_CREDITED_MESSAGE)
@@ -152,6 +163,15 @@ public class UserServiceImpl implements UserService {
             user.setAccountBalance(user.getAccountBalance().subtract(request.getAmount()));
             userRepository.save(user);
 
+            TransactionDto transactionDto = TransactionDto.builder()
+                    .accountNumber(user.getAccountNumber())
+                    .amount(request.getAmount())
+                    .transactionType("DEBIT")
+                    .build();
+
+            transactionService.saveTransaction(transactionDto);
+
+
             return BankResponse.builder()
                     .responseCode(AccountUtils.ACC_HAS_BEEN_DEBITED)
                     .responseMessage(AccountUtils.ACC_HAS_BEEN_DEBITED_MESSAGE)
@@ -162,5 +182,75 @@ public class UserServiceImpl implements UserService {
                             .build())
                     .build();
         }
+    }
+
+    @Override
+    public BankResponse transfer(TransferRequest request) {
+
+        boolean senderExists = userRepository.existsByAccountNumber(request.getSenderAccountNumber());
+        boolean receiverExists = userRepository.existsByAccountNumber(request.getReceiverAccountNumber());
+
+        //TODO: can make more specific Responses depending on if sender or receiver accounts do not exist, or if Both of them do not exist.
+        if (!senderExists || !receiverExists) {
+            return BankResponse.builder()
+                    .responseCode(AccountUtils.ACC_NOT_EXISTS)
+                    .responseMessage(AccountUtils.ACC_NOT_EXISTS_MESSAGE)
+                    .accountInfo(null)
+                    .build();
+        }
+
+        User sender = userRepository.findByAccountNumber(request.getSenderAccountNumber());
+
+        if (request.getAmount().compareTo(sender.getAccountBalance()) > 0) {
+            return BankResponse.builder()
+                    .responseCode(AccountUtils.ACC_HAS_INSUFFICIENT_FUNDS)
+                    .responseMessage(AccountUtils.ACC_HAS_INSUFFICIENT_FUNDS_MESSAGE)
+                    .accountInfo(null)
+                    .build();
+        }
+        User receiver = userRepository.findByAccountNumber(request.getReceiverAccountNumber());
+
+        sender.setAccountBalance(sender.getAccountBalance().subtract(request.getAmount()));
+        userRepository.save(sender);
+        EmailDetails emailDetails = EmailDetails.builder()
+                .receiver(sender.getEmail())
+                .subject("NEW DEBIT TRANSACTION")
+                .messageBody(request.getAmount().toString() + " has been deducted from your account.")
+                .build();
+        emailService.sendEmail(emailDetails);
+
+        receiver.setAccountBalance(receiver.getAccountBalance().add(request.getAmount()));
+        userRepository.save(receiver);
+
+        TransactionDto transactionDto = TransactionDto.builder()
+                .accountNumber(receiver.getAccountNumber())
+                .amount(request.getAmount())
+                .transactionType("CREDIT")
+                .build();
+
+        transactionService.saveTransaction(transactionDto);
+
+        TransactionDto transactionDto1 = TransactionDto.builder()
+                .accountNumber(sender.getAccountNumber())
+                .amount(request.getAmount())
+                .transactionType("DEBIT")
+                .build();
+
+        transactionService.saveTransaction(transactionDto1);
+
+
+
+        EmailDetails emailDetailsRec = EmailDetails.builder()
+                .receiver(sender.getEmail())
+                .subject("NEW DEBIT TRANSACTION")
+                .messageBody(request.getAmount().toString() + " has been added to your account.")
+                .build();
+        emailService.sendEmail(emailDetailsRec);
+
+        return BankResponse.builder()
+                .responseCode(AccountUtils.MONEY_HAS_BEEN_TRANSFERRED)
+                .responseMessage(AccountUtils.MONEY_HAS_BEEN_TRANSFERRED_MESSAGE)
+                .accountInfo(null)
+                .build();
     }
 }
