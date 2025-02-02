@@ -1,9 +1,16 @@
 package com.drew.Bank_App.service.impl;
+import com.drew.Bank_App.config.JwtTokenProvider;
 import com.drew.Bank_App.dto.*;
+import com.drew.Bank_App.entity.Role;
 import com.drew.Bank_App.entity.User;
 import com.drew.Bank_App.repository.UserRepository;
 import com.drew.Bank_App.utils.AccountUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -18,6 +25,15 @@ public class UserServiceImpl implements UserService {
 
     @Autowired
     TransactionService transactionService;
+
+    @Autowired
+    PasswordEncoder passwordEncoder;
+
+    @Autowired
+    AuthenticationManager authenticationManager;
+
+    @Autowired
+    JwtTokenProvider jwtTokenProvider;
 
     @Override
     public BankResponse createAccount(UserRequest userRequest) {
@@ -45,6 +61,8 @@ public class UserServiceImpl implements UserService {
                 .accountNumber(AccountUtils.generateAccountNumber())
                 .accountBalance(BigDecimal.ZERO)
                 .status("ACTIVE")
+                .password(passwordEncoder.encode(userRequest.getPassword()))
+                .role(Role.ROLE_USER)
                 .build();
 
         User savedUser = userRepository.save(newUser);
@@ -64,6 +82,26 @@ public class UserServiceImpl implements UserService {
                         .accountNumber(savedUser.getAccountNumber())
                         .accountName(savedUser.getFirstName() + " " + savedUser.getLastName())
                         .build())
+                .build();
+    }
+
+    public BankResponse login(LoginDto loginDto) {
+        Authentication authentication = null;
+        authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(loginDto.getEmail(), loginDto.getPassword())
+        );
+
+        EmailDetails loginEmail = EmailDetails.builder()
+                .receiver(loginDto.getEmail())
+                .subject("Bank Account Login")
+                .messageBody("You are logged into your account. Contact us if this was not you.")
+                .build();
+
+        emailService.sendEmail(loginEmail);
+
+        return BankResponse.builder()
+                .responseCode("Login Successful!")
+                .responseMessage(jwtTokenProvider.generateToken(authentication))
                 .build();
     }
 
